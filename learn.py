@@ -14,10 +14,13 @@ from rl.random import OrnsteinUhlenbeckProcess, GaussianWhiteNoiseProcess
 from bargaining import Bargaining
 from interleaved import InterleavedAgent
 
+from os.path import join
+
 #ENV_NAME = 'Pendulum-v0'
 #env = gym.make(ENV_NAME)
 
 ENV_NAME = 'Bargaining'
+WEIGHTS_FOLDER = 'weights'
 env = Bargaining()
 
 #np.random.seed(123)
@@ -31,7 +34,6 @@ LAYER_SIZE = 64
 N_WARMUP = 5000
 
 # Next, we build a very simple model.
-
 observation_input = Input(shape=(MEMORY_WINDOW,) + env.observation_space.shape, name='observation_input')
 x = Flatten()(observation_input)
 x = Dense(LAYER_SIZE,kernel_regularizer=l2(0.01))(x)
@@ -75,7 +77,7 @@ agent = DDPGAgent(nb_actions=nb_actions, actor=actor, critic=critic, critic_acti
 # Use the same network for both sides (self-play)
 agent = InterleavedAgent([agent,agent])
 
-# Make a copy of these networks for player 2 (buyer)
+# Alt: Make a copy of these networks for player 2 (buyer)
 '''
 actor_b = clone_model(actor)
 critic_b = clone_model(critic)
@@ -92,15 +94,11 @@ agent = InterleavedAgent([agent,agent_b])
 
 agent.compile([Adam(lr=1e-3),Adam(lr=1e-3)], metrics=['mae'])
 
-#agent.load_weights('ddpg_{}_weights.h5f'.format(ENV_NAME))
+agent.load_weights(join(WEIGHTS_FOLDER,'ddpg_{}_weights.h5f').format(ENV_NAME))
 
-# Okay, now it's time to learn something! We visualize the training here for show, but this
-# slows down training quite a lot. You can always safely abort the training prematurely using
-# Ctrl + C.
 agent.fit(env, nb_steps=800000, visualize=False, verbose=1, nb_max_episode_steps=None)
 
-# After training is done, we save the final weights.
-agent.save_weights('ddpg_{}_weights.h5f'.format(ENV_NAME), overwrite=True)
+agent.save_weights(join(WEIGHTS_FOLDER,'ddpg_{}_weights.h5f').format(ENV_NAME), overwrite=True)
 
 # Finally, evaluate our algorithm for 5 episodes.
 agent.test(env, nb_episodes=5, visualize=True, nb_max_episode_steps=200)
